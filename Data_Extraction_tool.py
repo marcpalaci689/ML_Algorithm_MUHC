@@ -44,10 +44,10 @@ def get_primary_oncologist(DB):
     onc_cnx = mysql.connector.connect(user='root',password='service', database=DB)
     onc_cur = onc_cnx.cursor()
 
-    onc_cur.execute(''' SELECT patient.PatientSerNum, doctor.LastName
-    FROM patient JOIN patientdoctor on patient.PatientSerNum = patientdoctor.PatientSerNum
-    JOIN doctor on doctor.DoctorSerNum = patientdoctor.DoctorSerNum
-    WHERE patientdoctor.OncologistFlag = 1 AND patientdoctor.PrimaryFlag = 1 ''')
+    onc_cur.execute(''' SELECT Patient.PatientSerNum, Doctor.LastName
+    FROM Patient JOIN Patientdoctor on Patient.PatientSerNum = Patientdoctor.PatientSerNum
+    JOIN Doctor on Doctor.DoctorSerNum = Patientdoctor.DoctorSerNum
+    WHERE Patientdoctor.OncologistFlag = 1 AND Patientdoctor.PrimaryFlag = 1 ''')
 
     primonc = onc_cur.fetchall()
     return primonc
@@ -58,10 +58,10 @@ def get_dosimetrist(DB):
     dos_cnx = mysql.connector.connect(user='root',password='service', database=DB)
     dos_cur = dos_cnx.cursor()
 
-    dos_cur.execute(''' SELECT task.PatientSerNum, task.CreationDate,task.ActivityInstanceAriaSer, resource.ResourceName
-    FROM task JOIN attendee ON task.ActivityInstanceAriaSer = attendee.ActivityInstanceAriaSer
-    JOIN resource ON attendee.ResourceSerNum = resource.ResourceSerNum
-    WHERE task.AliasSerNum = 22 AND resource.ResourceType = 'Staff' AND CreationDate > '2012-01-01 00:00:00' ''')
+    dos_cur.execute(''' SELECT Task.PatientSerNum, Task.CreationDate,Task.ActivityInstanceAriaSer, Resource.ResourceName
+    FROM Task JOIN Attendee ON Task.ActivityInstanceAriaSer = Attendee.ActivityInstanceAriaSer
+    JOIN Resource ON Attendee.ResourceSerNum = Resource.ResourceSerNum
+    WHERE Task.AliasSerNum = 22 AND Resource.ResourceType = 'Staff' AND CreationDate > '2012-01-01 00:00:00' ''')
 
     dose = dos_cur.fetchall()
     dosimetrists = []
@@ -76,10 +76,10 @@ def get_doctors(DB):
     doc_cnx = mysql.connector.connect(user='root',password='service', database=DB)
     doc_cur = doc_cnx.cursor()
 
-    doc_cur.execute(''' SELECT task.PatientSerNum, task.CreationDate,task.ActivityInstanceAriaSer, resource.ResourceName
-    FROM task JOIN attendee ON task.ActivityInstanceAriaSer = attendee.ActivityInstanceAriaSer
-    JOIN resource ON attendee.ResourceSerNum = resource.ResourceSerNum
-    WHERE task.AliasSerNum = 8 AND resource.ResourceType = 'Doctor' AND CreationDate > '2012-01-01 00:00:00'  ''')
+    doc_cur.execute(''' SELECT Task.PatientSerNum, Task.CreationDate,Task.ActivityInstanceAriaSer, Resource.ResourceName
+    FROM Task JOIN Attendee ON Task.ActivityInstanceAriaSer = Attendee.ActivityInstanceAriaSer
+    JOIN Resource ON Attendee.ResourceSerNum = Resource.ResourceSerNum
+    WHERE Task.AliasSerNum = 8 AND Resource.ResourceType = 'Doctor' AND CreationDate > '2012-01-01 00:00:00'  ''')
 
     docs = doc_cur.fetchall()
     doctors = []
@@ -91,7 +91,7 @@ def get_cancer(DB):
     can_cnx = mysql.connector.connect(user='root',password='service', database=DB)
     can_cur = can_cnx.cursor()
 
-    can_cur.execute(''' SELECT DiagnosisCode, AliasName FROM diagnosistranslation  ''')
+    can_cur.execute(''' SELECT DiagnosisCode, AliasName FROM DiagnosisTranslation  ''')
 
     can = can_cur.fetchall()
     diagnosiscode=[]
@@ -111,37 +111,37 @@ def query_database(DB):
     print('----------------- querying database ------------------')
     start=time.time()
     cur.execute(''' SELECT * FROM
-    (SELECT  patient.PatientSerNum, diagnosis.DiagnosisCode, priority.PriorityCode, alias.AliasName, appointment.ScheduledStartTime, priority.CreationDate,
-    patient.Sex, patient.DateOfBirth,appointment.ActivityInstanceAriaSer, appointment.ScheduledEndTime, priority.DueDateTime
-    FROM appointment JOIN patient ON appointment.PatientSerNum=patient.PatientSerNum 
-    JOIN diagnosis ON appointment.DiagnosisSerNum = diagnosis.DiagnosisSerNum
-    JOIN priority ON appointment.PrioritySerNum = priority.PrioritySerNum 
-    JOIN alias ON appointment.AliasSerNum = alias.AliasSerNum 
-    WHERE appointment.AliasSerNum = 3 AND appointment.Status!='Cancelled' AND appointment.State!='Deleted' 
+    (SELECT  Patient.PatientSerNum, Diagnosis.DiagnosisCode, Priority.PriorityCode, Alias.AliasName, Appointment.ScheduledStartTime, Priority.CreationDate,
+    Patient.Sex, Patient.DateOfBirth,Appointment.ActivityInstanceAriaSer, Appointment.ScheduledEndTime, Priority.DueDateTime
+    FROM Appointment JOIN Patient ON Appointment.PatientSerNum=Patient.PatientSerNum 
+    JOIN Diagnosis ON Appointment.DiagnosisSerNum = Diagnosis.DiagnosisSerNum
+    JOIN Priority ON Appointment.PrioritySerNum = Priority.PrioritySerNum 
+    JOIN Alias ON Appointment.AliasSerNum = Alias.AliasSerNum 
+    WHERE Appointment.AliasSerNum = 3 AND Appointment.Status!='Cancelled' AND Appointment.State!='Deleted' 
     UNION ALL SELECT
-    patient.PatientSerNum, diagnosis.DiagnosisCode, priority.PriorityCode, alias.AliasName, task.CreationDate, priority.CreationDate, patient.Sex,patient.DateOfBirth,
-    task.ActivityInstanceAriaSer, task.CompletionDate, priority.DueDateTime
-    FROM task JOIN patient ON task.PatientSerNum=patient.PatientSerNum 
-    JOIN diagnosis ON task.DiagnosisSerNum = diagnosis.DiagnosisSerNum
-    JOIN priority ON task.PrioritySerNum = priority.PrioritySerNum 
-    JOIN alias ON task.AliasSerNum = alias.AliasSerNum 
-    WHERE (task.AliasSerNum = 8 OR task.AliasSerNum=22 OR task.AliasSerNum=18 OR task.AliasSerNum=19) AND task.Status != 'Cancelled' AND task.State != 'Deleted'
+    Patient.PatientSerNum, Diagnosis.DiagnosisCode, Priority.PriorityCode, Alias.AliasName, Task.CreationDate, Priority.CreationDate, Patient.Sex,Patient.DateOfBirth,
+    Task.ActivityInstanceAriaSer, Task.CompletionDate, Priority.DueDateTime
+    FROM Task JOIN Patient ON Task.PatientSerNum=Patient.PatientSerNum 
+    JOIN Diagnosis ON Task.DiagnosisSerNum = Diagnosis.DiagnosisSerNum
+    JOIN Priority ON Task.PrioritySerNum = Priority.PrioritySerNum 
+    JOIN Alias ON Task.AliasSerNum = Alias.AliasSerNum 
+    WHERE (Task.AliasSerNum = 8 OR Task.AliasSerNum=22 OR Task.AliasSerNum=18 OR Task.AliasSerNum=19) AND Task.Status != 'Cancelled' AND Task.State != 'Deleted'
     UNION ALL SELECT
-    patient.PatientSerNum, diagnosis.DiagnosisCode, priority.PriorityCode, alias.AliasName, task.DueDateTime, priority.CreationDate, patient.Sex,patient.DateOfBirth,
-    task.ActivityInstanceAriaSer, task.CompletionDate, priority.DueDateTime
-    FROM task JOIN patient ON task.PatientSerNum=patient.PatientSerNum 
-    JOIN diagnosis ON task.DiagnosisSerNum = diagnosis.DiagnosisSerNum
-    JOIN priority ON task.PrioritySerNum = priority.PrioritySerNum 
-    JOIN alias ON task.AliasSerNum = alias.AliasSerNum 
-    WHERE task.AliasSerNum=6
+    Patient.PatientSerNum, Diagnosis.DiagnosisCode, Priority.PriorityCode, Alias.AliasName, Task.DueDateTime, Priority.CreationDate, Patient.Sex,Patient.DateOfBirth,
+    Task.ActivityInstanceAriaSer, Task.CompletionDate, Priority.DueDateTime
+    FROM Task JOIN Patient ON Task.PatientSerNum=Patient.PatientSerNum 
+    JOIN Diagnosis ON Task.DiagnosisSerNum = Diagnosis.DiagnosisSerNum
+    JOIN Priority ON Task.PrioritySerNum = Priority.PrioritySerNum 
+    JOIN Alias ON Task.AliasSerNum = Alias.AliasSerNum 
+    WHERE Task.AliasSerNum=6
     UNION ALL SELECT
-    patient.PatientSerNum, diagnosis.DiagnosisCode, priority.PriorityCode, alias.AliasName, document.ApprovedTimeStamp, priority.CreationDate,
-    patient.Sex,patient.DateOfBirth, document.DocumentSerNum, document.DateOfService, priority.DueDateTime
-    FROM document JOIN patient ON document.PatientSerNum=patient.PatientSerNum 
-    JOIN diagnosis ON document.DiagnosisSerNum = diagnosis.DiagnosisSerNum
-    JOIN priority ON document.PrioritySerNum = priority.PrioritySerNum 
-    JOIN alias ON document.AliasSerNum = alias.AliasSerNum 
-    WHERE (document.AliasSerNum = 20 OR document.AliasSerNum=21))dum
+    Patient.PatientSerNum, Diagnosis.DiagnosisCode, Priority.PriorityCode, Alias.AliasName, Document.ApprovedTimeStamp, Priority.CreationDate,
+    Patient.Sex,Patient.DateOfBirth, Document.DocumentSerNum, Document.DateOfService, Priority.DueDateTime
+    FROM Document JOIN Patient ON Document.PatientSerNum=Patient.PatientSerNum 
+    JOIN Diagnosis ON Document.DiagnosisSerNum = Diagnosis.DiagnosisSerNum
+    JOIN Priority ON Document.PrioritySerNum = Priority.PrioritySerNum 
+    JOIN Alias ON Document.AliasSerNum = Alias.AliasSerNum 
+    WHERE (Document.AliasSerNum = 20 OR Document.AliasSerNum=21))dum
     WHERE (PriorityCode = 'SGAS_P4' OR PriorityCode='SGAS_P3') AND ScheduledStartTime > '2012-01-01 00:00:00'   
     ORDER BY PatientSerNum, ScheduledStartTime ''')
 
@@ -161,27 +161,27 @@ def add_nopriorityCT(DB,data):
     ct_cnx=mysql.connector.connect(user='root',password='service', database=DB)
     ct_cur = ct_cnx.cursor()
 
-    ct_cur.execute('''SELECT  patient.PatientSerNum, diagnosis.DiagnosisCode, appointment.PrioritySerNum, alias.AliasName, appointment.ScheduledStartTime, appointment.PrioritySerNum,
-    patient.Sex, patient.DateOfBirth,appointment.ActivityInstanceAriaSer, appointment.ScheduledEndTime, appointment.PrioritySerNum
-    FROM appointment JOIN patient ON appointment.PatientSerNum=patient.PatientSerNum 
-    JOIN diagnosis ON appointment.DiagnosisSerNum = diagnosis.DiagnosisSerNum
-    JOIN alias ON appointment.AliasSerNum = alias.AliasSerNum 
-    WHERE appointment.AliasSerNum = 3 AND appointment.Status != 'Cancelled' AND ScheduledStartTime > '2012-01-01 00:00:00' AND appointment.PrioritySerNum=0
+    ct_cur.execute('''SELECT  Patient.PatientSerNum, Diagnosis.DiagnosisCode, Appointment.PrioritySerNum, Alias.AliasName, Appointment.ScheduledStartTime, Appointment.PrioritySerNum,
+    Patient.Sex, Patient.DateOfBirth,Appointment.ActivityInstanceAriaSer, Appointment.ScheduledEndTime, Appointment.PrioritySerNum
+    FROM Appointment JOIN Patient ON Appointment.PatientSerNum=Patient.PatientSerNum 
+    JOIN Diagnosis ON Appointment.DiagnosisSerNum = Diagnosis.DiagnosisSerNum
+    JOIN Alias ON Appointment.AliasSerNum = Alias.AliasSerNum 
+    WHERE Appointment.AliasSerNum = 3 AND Appointment.Status != 'Cancelled' AND ScheduledStartTime > '2012-01-01 00:00:00' AND Appointment.PrioritySerNum=0
     UNION ALL
-    SELECT  patient.PatientSerNum, appointment.DiagnosisSerNum, appointment.PrioritySerNum, alias.AliasName, appointment.ScheduledStartTime, appointment.PrioritySerNum,
-    patient.Sex, patient.DateOfBirth,appointment.ActivityInstanceAriaSer, appointment.ScheduledEndTime, appointment.PrioritySerNum
-    FROM appointment JOIN patient ON appointment.PatientSerNum=patient.PatientSerNum 
-    JOIN alias ON appointment.AliasSerNum = alias.AliasSerNum 
-    WHERE appointment.AliasSerNum = 3 AND appointment.Status != 'Cancelled' AND ScheduledStartTime > '2012-01-01 00:00:00' AND appointment.PrioritySerNum=0 AND
-    appointment.DiagnosisSerNum=0
+    SELECT  Patient.PatientSerNum, Appointment.DiagnosisSerNum, Appointment.PrioritySerNum, Alias.AliasName, Appointment.ScheduledStartTime, Appointment.PrioritySerNum,
+    Patient.Sex, Patient.DateOfBirth,Appointment.ActivityInstanceAriaSer, Appointment.ScheduledEndTime, Appointment.PrioritySerNum
+    FROM Appointment JOIN Patient ON Appointment.PatientSerNum=Patient.PatientSerNum 
+    JOIN Alias ON Appointment.AliasSerNum = Alias.AliasSerNum 
+    WHERE Appointment.AliasSerNum = 3 AND Appointment.Status != 'Cancelled' AND ScheduledStartTime > '2012-01-01 00:00:00' AND Appointment.PrioritySerNum=0 AND
+    Appointment.DiagnosisSerNum=0
     UNION ALL
-    SELECT  patient.PatientSerNum, appointment.DiagnosisSerNum, priority.PriorityCode, alias.AliasName, appointment.ScheduledStartTime, priority.CreationDate,
-    patient.Sex, patient.DateOfBirth,appointment.ActivityInstanceAriaSer, appointment.ScheduledEndTime, priority.DueDateTime
-    FROM appointment JOIN patient ON appointment.PatientSerNum=patient.PatientSerNum 
-    JOIN priority ON appointment.PrioritySerNum = priority.PrioritySerNum 
-    JOIN alias ON appointment.AliasSerNum = alias.AliasSerNum 
-    WHERE appointment.AliasSerNum = 3  AND appointment.Status != 'Cancelled' AND appointment.DiagnosisSerNum=0  AND
-    ScheduledStartTime > '2012-01-01 00:00:00' AND (priority.PriorityCode='SGAS_P3' OR priority.PriorityCode='SGAS_P4') ''')
+    SELECT  Patient.PatientSerNum, Appointment.DiagnosisSerNum, Priority.PriorityCode, Alias.AliasName, Appointment.ScheduledStartTime, Priority.CreationDate,
+    Patient.Sex, Patient.DateOfBirth,Appointment.ActivityInstanceAriaSer, Appointment.ScheduledEndTime, Priority.DueDateTime
+    FROM Appointment JOIN Patient ON Appointment.PatientSerNum=Patient.PatientSerNum 
+    JOIN Priority ON Appointment.PrioritySerNum = Priority.PrioritySerNum 
+    JOIN Alias ON Appointment.AliasSerNum = Alias.AliasSerNum 
+    WHERE Appointment.AliasSerNum = 3  AND Appointment.Status != 'Cancelled' AND Appointment.DiagnosisSerNum=0  AND
+    ScheduledStartTime > '2012-01-01 00:00:00' AND (Priority.PriorityCode='SGAS_P3' OR Priority.PriorityCode='SGAS_P4') ''')
 
     ct_data=ct_cur.fetchall()
     new_data = data+ct_data
@@ -194,27 +194,27 @@ def add_nopriorityTasks(DB,data):
     task_cnx=mysql.connector.connect(user='root',password='service', database=DB)
     task_cur = task_cnx.cursor()
 
-    task_cur.execute('''SELECT  patient.PatientSerNum, diagnosis.DiagnosisCode, task.PrioritySerNum, alias.AliasName, task.CreationDate, task.PrioritySerNum,
-    patient.Sex, patient.DateOfBirth,task.ActivityInstanceAriaSer, task.CompletionDate, task.PrioritySerNum
-    FROM task JOIN patient ON task.PatientSerNum=patient.PatientSerNum 
-    JOIN diagnosis ON task.DiagnosisSerNum = diagnosis.DiagnosisSerNum
-    JOIN alias ON task.AliasSerNum = alias.AliasSerNum 
-    WHERE task.AliasSerNum IN (8, 18, 19,22) AND task.Status != 'Cancelled'  AND task.State != 'Deleted' AND task.CreationDate > '2012-01-00 00:00:00' AND task.PrioritySerNum=0
+    task_cur.execute('''SELECT  Patient.PatientSerNum, Diagnosis.DiagnosisCode, Task.PrioritySerNum, Alias.AliasName, Task.CreationDate, Task.PrioritySerNum,
+    Patient.Sex, Patient.DateOfBirth,Task.ActivityInstanceAriaSer, Task.CompletionDate, Task.PrioritySerNum
+    FROM Task JOIN Patient ON Task.PatientSerNum=Patient.PatientSerNum 
+    JOIN Diagnosis ON Task.DiagnosisSerNum = Diagnosis.DiagnosisSerNum
+    JOIN Alias ON Task.AliasSerNum = Alias.AliasSerNum 
+    WHERE Task.AliasSerNum IN (8, 18, 19,22) AND Task.Status != 'Cancelled'  AND Task.State != 'Deleted' AND Task.CreationDate > '2012-01-00 00:00:00' AND Task.PrioritySerNum=0
     UNION ALL
-    SELECT  patient.PatientSerNum, task.DiagnosisSerNum, task.PrioritySerNum, alias.AliasName, task.CreationDate, task.PrioritySerNum,
-    patient.Sex, patient.DateOfBirth,task.ActivityInstanceAriaSer, task.CompletionDate, task.PrioritySerNum
-    FROM task JOIN patient ON task.PatientSerNum=patient.PatientSerNum 
-    JOIN alias ON task.AliasSerNum = alias.AliasSerNum 
-    WHERE task.AliasSerNum IN (8, 18, 19,22) AND task.Status != 'Cancelled' AND task.State != 'Deleted' AND task.CreationDate > '2012-01-00 00:00:00' AND task.PrioritySerNum=0 AND
-    task.DiagnosisSerNum=0
+    SELECT  Patient.PatientSerNum, Task.DiagnosisSerNum, Task.PrioritySerNum, Alias.AliasName, Task.CreationDate, Task.PrioritySerNum,
+    Patient.Sex, Patient.DateOfBirth,Task.ActivityInstanceAriaSer, Task.CompletionDate, Task.PrioritySerNum
+    FROM Task JOIN Patient ON Task.PatientSerNum=Patient.PatientSerNum 
+    JOIN Alias ON Task.AliasSerNum = Alias.AliasSerNum 
+    WHERE Task.AliasSerNum IN (8, 18, 19,22) AND Task.Status != 'Cancelled' AND Task.State != 'Deleted' AND Task.CreationDate > '2012-01-00 00:00:00' AND Task.PrioritySerNum=0 AND
+    Task.DiagnosisSerNum=0
     UNION ALL
-    SELECT  patient.PatientSerNum, task.DiagnosisSerNum, priority.PriorityCode, alias.AliasName, task.CreationDate, priority.CreationDate,
-    patient.Sex, patient.DateOfBirth,task.ActivityInstanceAriaSer, task.CompletionDate, priority.DueDateTime
-    FROM task JOIN patient ON task.PatientSerNum=patient.PatientSerNum 
-    JOIN priority ON task.PrioritySerNum = priority.PrioritySerNum 
-    JOIN alias ON task.AliasSerNum = alias.AliasSerNum 
-    WHERE task.AliasSerNum IN (8, 18, 19,22)  AND task.Status != 'Cancelled' AND task.State != 'Deleted' AND task.DiagnosisSerNum=0  AND
-    task.CreationDate > '2012-01-00 00:00:00' AND (priority.PriorityCode='SGAS_P3' OR priority.PriorityCode='SGAS_P4') ''')
+    SELECT  Patient.PatientSerNum, Task.DiagnosisSerNum, Priority.PriorityCode, Alias.AliasName, Task.CreationDate, Priority.CreationDate,
+    Patient.Sex, Patient.DateOfBirth,Task.ActivityInstanceAriaSer, Task.CompletionDate, Priority.DueDateTime
+    FROM Task JOIN Patient ON Task.PatientSerNum=Patient.PatientSerNum 
+    JOIN Priority ON Task.PrioritySerNum = Priority.PrioritySerNum 
+    JOIN Alias ON Task.AliasSerNum = Alias.AliasSerNum 
+    WHERE Task.AliasSerNum IN (8, 18, 19,22)  AND Task.Status != 'Cancelled' AND Task.State != 'Deleted' AND Task.DiagnosisSerNum=0  AND
+    Task.CreationDate > '2012-01-00 00:00:00' AND (Priority.PriorityCode='SGAS_P3' OR Priority.PriorityCode='SGAS_P4') ''')
     taskdata=task_cur.fetchall()
 
     new_data=data+taskdata
@@ -226,27 +226,27 @@ def add_nopriorityEOTNT(DB,data):
     EOTNT_cnx=mysql.connector.connect(user='root',password='service', database=DB)
     EOTNT_cur = EOTNT_cnx.cursor()
 
-    EOTNT_cur.execute('''SELECT  patient.PatientSerNum, diagnosis.DiagnosisCode, task.PrioritySerNum, alias.AliasName, task.DueDateTime, task.PrioritySerNum,
-    patient.Sex, patient.DateOfBirth,task.ActivityInstanceAriaSer, task.CompletionDate, task.PrioritySerNum
-    FROM task JOIN patient ON task.PatientSerNum=patient.PatientSerNum 
-    JOIN diagnosis ON task.DiagnosisSerNum = diagnosis.DiagnosisSerNum
-    JOIN alias ON task.AliasSerNum = alias.AliasSerNum 
-    WHERE task.AliasSerNum=6 AND task.Status != 'Cancelled'  AND task.State != 'Deleted' AND task.CreationDate > '2012-01-00 00:00:00' AND task.PrioritySerNum=0
+    EOTNT_cur.execute('''SELECT  Patient.PatientSerNum, Diagnosis.DiagnosisCode, Task.PrioritySerNum, Alias.AliasName, Task.DueDateTime, Task.PrioritySerNum,
+    Patient.Sex, Patient.DateOfBirth,Task.ActivityInstanceAriaSer, Task.CompletionDate, Task.PrioritySerNum
+    FROM Task JOIN Patient ON Task.PatientSerNum=Patient.PatientSerNum 
+    JOIN Diagnosis ON Task.DiagnosisSerNum = Diagnosis.DiagnosisSerNum
+    JOIN Alias ON Task.AliasSerNum = Alias.AliasSerNum 
+    WHERE Task.AliasSerNum=6 AND Task.Status != 'Cancelled'  AND Task.State != 'Deleted' AND Task.CreationDate > '2012-01-00 00:00:00' AND Task.PrioritySerNum=0
     UNION ALL
-    SELECT  patient.PatientSerNum, task.DiagnosisSerNum, task.PrioritySerNum, alias.AliasName, task.DueDateTime, task.PrioritySerNum,
-    patient.Sex, patient.DateOfBirth,task.ActivityInstanceAriaSer, task.CompletionDate, task.PrioritySerNum
-    FROM task JOIN patient ON task.PatientSerNum=patient.PatientSerNum 
-    JOIN alias ON task.AliasSerNum = alias.AliasSerNum 
-    WHERE task.AliasSerNum = 6 AND task.Status != 'Cancelled' AND task.State != 'Deleted' AND task.CreationDate > '2012-01-00 00:00:00' AND task.PrioritySerNum=0 AND
-    task.DiagnosisSerNum=0
+    SELECT  Patient.PatientSerNum, Task.DiagnosisSerNum, Task.PrioritySerNum, Alias.AliasName, Task.DueDateTime, Task.PrioritySerNum,
+    Patient.Sex, Patient.DateOfBirth,Task.ActivityInstanceAriaSer, Task.CompletionDate, Task.PrioritySerNum
+    FROM Task JOIN Patient ON Task.PatientSerNum=Patient.PatientSerNum 
+    JOIN Alias ON Task.AliasSerNum = Alias.AliasSerNum 
+    WHERE Task.AliasSerNum = 6 AND Task.Status != 'Cancelled' AND Task.State != 'Deleted' AND Task.CreationDate > '2012-01-00 00:00:00' AND Task.PrioritySerNum=0 AND
+    Task.DiagnosisSerNum=0
     UNION ALL
-    SELECT  patient.PatientSerNum, task.DiagnosisSerNum, priority.PriorityCode, alias.AliasName, task.DueDateTime, priority.CreationDate,
-    patient.Sex, patient.DateOfBirth,task.ActivityInstanceAriaSer, task.CompletionDate, priority.DueDateTime
-    FROM task JOIN patient ON task.PatientSerNum=patient.PatientSerNum 
-    JOIN priority ON task.PrioritySerNum = priority.PrioritySerNum 
-    JOIN alias ON task.AliasSerNum = alias.AliasSerNum 
-    WHERE task.AliasSerNum = 6  AND task.Status != 'Cancelled' AND task.State != 'Deleted' AND task.DiagnosisSerNum=0  AND
-    task.CreationDate > '2012-01-00 00:00:00' AND (priority.PriorityCode='SGAS_P3' OR priority.PriorityCode='SGAS_P4') ''')
+    SELECT  Patient.PatientSerNum, Task.DiagnosisSerNum, Priority.PriorityCode, Alias.AliasName, Task.DueDateTime, Priority.CreationDate,
+    Patient.Sex, Patient.DateOfBirth,Task.ActivityInstanceAriaSer, Task.CompletionDate, Priority.DueDateTime
+    FROM Task JOIN Patient ON Task.PatientSerNum=Patient.PatientSerNum 
+    JOIN Priority ON Task.PrioritySerNum = Priority.PrioritySerNum 
+    JOIN Alias ON Task.AliasSerNum = Alias.AliasSerNum 
+    WHERE Task.AliasSerNum = 6  AND Task.Status != 'Cancelled' AND Task.State != 'Deleted' AND Task.DiagnosisSerNum=0  AND
+    Task.CreationDate > '2012-01-00 00:00:00' AND (Priority.PriorityCode='SGAS_P3' OR Priority.PriorityCode='SGAS_P4')''')
     EOTNTdata=EOTNT_cur.fetchall()
 
     new_data=data+EOTNTdata
@@ -259,12 +259,12 @@ def dosimetry(DB):
     d_cur=d_cnx.cursor()
     ### Fetch data from database
     
-    d_cur.execute('''SELECT patient.PatientSerNum,diagnosis.DiagnosisCode,priority.PriorityCode,alias.AliasName,task.CreationDate,priority.CreationDate,patient.Sex,patient.DateOfBirth,task.ActivityInstanceAriaSer,task.CompletionDate
-    FROM task JOIN patient ON task.PatientSerNum=patient.PatientSerNum 
-    JOIN diagnosis ON task.DiagnosisSerNum = diagnosis.DiagnosisSerNum
-    JOIN priority ON task.PrioritySerNum = priority.PrioritySerNum 
-    JOIN alias ON task.AliasSerNum = alias.AliasSerNum 
-    WHERE task.AliasSerNum=22 AND task.CreationDate > '2012-01-01 00:00:00' ''')
+    d_cur.execute('''SELECT Patient.PatientSerNum,Diagnosis.DiagnosisCode,Priority.PriorityCode,Alias.AliasName,Task.CreationDate,Priority.CreationDate,Patient.Sex,Patient.DateOfBirth,Task.ActivityInstanceAriaSer,Task.CompletionDate
+    FROM Task JOIN Patient ON Task.PatientSerNum=Patient.PatientSerNum 
+    JOIN Diagnosis ON Task.DiagnosisSerNum = Diagnosis.DiagnosisSerNum
+    JOIN Priority ON Task.PrioritySerNum = Priority.PrioritySerNum 
+    JOIN Alias ON Task.AliasSerNum = Alias.AliasSerNum 
+    WHERE Task.AliasSerNum=22 AND Task.CreationDate > '2012-01-01 00:00:00' ''')
 
      
     data=d_cur.fetchall()
