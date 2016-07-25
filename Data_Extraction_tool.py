@@ -794,7 +794,7 @@ def get_MR_load(datadict):
     print('---------------- done in %.3f seconds ---------------\n' %(end-start)) 
     return datadict
 
-DB=devAEHRA
+DB='devAEHRA'
 #def ExtractData(DB):
 raw_data0 = query_database(DB)
 print('rawdata0')
