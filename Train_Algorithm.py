@@ -1,5 +1,4 @@
 import BuildMatrices
-import BuildInputMatrix as BIM
 from sklearn import cross_validation
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.cross_validation import train_test_split
