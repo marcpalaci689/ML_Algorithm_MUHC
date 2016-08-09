@@ -12,7 +12,7 @@ import copy
                 
 
 #def __main__():
-dat,col = BuildMatrices.build_matrices('seqDB2')
+dat,col = BuildMatrices.build_matrices('devAEHRA')
 
 for key in dat:
     if key == 'RFT':
