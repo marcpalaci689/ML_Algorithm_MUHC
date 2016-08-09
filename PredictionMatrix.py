@@ -70,7 +70,7 @@ def dosimetry(DB,creation_date):
     # set a limit for how far back in time to look. This limit will be set as 14 days. This limit is to improve efficiency, also completion dates are sometimes absent
     # so setting a limit reduces errors.
     limit = creation_date - datetime.timedelta(days=14)
-    d_cnx=mysql.connector.connect(user='marcpalaci689',password='crapiola689', database=DB)
+    d_cnx=mysql.connector.connect(user='root',password='service', database=DB)
     d_cur=d_cnx.cursor()
     ### Fetch dosimetry data from database
 
@@ -102,7 +102,7 @@ def dosimetry(DB,creation_date):
     return str(load)
 #  This function will obtain the first primary oncologist assigned to the patient
 def get_primary_oncologist(patient,DB):
-    onc_cnx = mysql.connector.connect(user='marcpalaci689',password='crapiola689', database=DB)
+    onc_cnx = mysql.connector.connect(user='root',password='service', database=DB)
     onc_cur = onc_cnx.cursor()
 
     onc_cur.execute(''' SELECT Patient.PatientSerNum, Doctor.LastName
@@ -116,7 +116,7 @@ def get_primary_oncologist(patient,DB):
 
 # This function will query the database and obtain the doctor assigned to the MD contour of each patient 
 def get_MDdoctor(activitysernum,DB):
-    doc_cnx = mysql.connector.connect(user='marcpalaci689',password='crapiola689', database=DB)
+    doc_cnx = mysql.connector.connect(user='root',password='service', database=DB)
     doc_cur = doc_cnx.cursor()
 
     doc_cur.execute(''' SELECT Task.PatientSerNum, Task.CreationDate,Task.ActivityInstanceAriaSer, Resource.ResourceName
