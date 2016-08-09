@@ -12,7 +12,7 @@ import PredictionMatrix as PM
 ### to know what or why this happened. Hence we cannot give predictions for these cases.
 
 def get_cancer(DB):
-    can_cnx = mysql.connector.connect(user='root',password='service', database=DB)
+    can_cnx = mysql.connector.connect(user='marcpalaci689',password='crapiola689', database=DB)
     can_cur = can_cnx.cursor()
 
     can_cur.execute(''' SELECT DiagnosisCode, AliasName FROM diagnosistranslation  ''')
@@ -31,7 +31,7 @@ def patient_history(DB,Patient):
     
     # Query Database to get the patients most recent treatment planning history
     
-    cnx=mysql.connector.connect(user='root',password='service', database=DB)
+    cnx=mysql.connector.connect(user='marcpalaci689',password='crapiola689', database=DB)
     cur=cnx.cursor()
     start=time.time()
     cur.execute(''' SELECT  patient.PatientSerNum, diagnosis.DiagnosisCode, priority.PriorityCode, alias.AliasName, appointment.ScheduledStartTime, priority.CreationDate,
@@ -62,7 +62,7 @@ def patient_history(DB,Patient):
     data_1 = list(data_1)
 
     # Add the no priority CT (if there is one)
-    ct_cnx=mysql.connector.connect(user='root',password='service', database=DB)
+    ct_cnx=mysql.connector.connect(user='marcpalaci689',password='crapiola689',database=DB)
     ct_cur = ct_cnx.cursor()
 
     ct_cur.execute('''SELECT  patient.PatientSerNum, diagnosis.DiagnosisCode, appointment.PrioritySerNum, alias.AliasName, appointment.ScheduledStartTime, appointment.PrioritySerNum,
@@ -205,13 +205,3 @@ def patient_history(DB,Patient):
     # If a prediction is expected, build matrix and return prediction with current treatment history. If not, then just return the
     # the current history
 
-
-        
-        
-        
-DB='seqDB6'
-PatientID = 44718
-
-res = patient_history(DB,PatientID)
-
-pred = PM.Build_Prediction_Matrix(res,DB)
