@@ -45,9 +45,9 @@ def get_primary_oncologist(DB):
     onc_cur = onc_cnx.cursor()
 
     onc_cur.execute(''' SELECT Patient.PatientSerNum, Doctor.LastName
-    FROM Patient JOIN Patientdoctor on Patient.PatientSerNum = Patientdoctor.PatientSerNum
-    JOIN Doctor on Doctor.DoctorSerNum = Patientdoctor.DoctorSerNum
-    WHERE Patientdoctor.OncologistFlag = 1 AND Patientdoctor.PrimaryFlag = 1 ''')
+    FROM Patient JOIN PatientDoctor on Patient.PatientSerNum = PatientDoctor.PatientSerNum
+    JOIN Doctor on Doctor.DoctorSerNum = PatientDoctor.DoctorSerNum
+    WHERE PatientDoctor.OncologistFlag = 1 AND PatientDoctor.PrimaryFlag = 1 ''')
 
     primonc = onc_cur.fetchall()
     return primonc
