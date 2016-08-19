@@ -38,8 +38,13 @@ def Predict(PatientID):
     DB = 'devAEHRA'
     # get the patient's most recent planning history
     patient_latest_history = PD.patient_history(DB,PatientID)
-    # Get predicted time until Ready for Treatment
-    prediction = PM.Build_Prediction_Matrix(patient_latest_history,DB)
+    # check whether or not the patient has indeed had an appointment or a task yet
+    if len(patient_latest_history)<1 :
+        prediction = 0
+        patient_latest_history = 'This patient has no appointments or tasks'
+    else:
+        # Get predicted time until Ready for Treatment
+        prediction = PM.Build_Prediction_Matrix(patient_latest_history,DB)
 
     history = []
     for i in patient_latest_history:
@@ -47,8 +52,12 @@ def Predict(PatientID):
             continue
         else: 
             datetime=i[4] #This is only here to keep track of the most recent creation date which will be used in conjunction with the prediction time to return the prediction date
-            date = i[4].strftime("%Y-%m-%d %H:%M:%S")
-            history.append([i[1],i[2],i[3],i[11],date])
+            if i[3] == 'Ct-Sim':
+                date = i[4].strftime("%Y-%m-%d %H:%M:%S")
+                history.append([i[1],i[2],i[3],'appointment',i[11],date])
+            else:
+                date = i[4].strftime("%Y-%m-%d %H:%M:%S")
+                history.append([i[1],i[2],i[3],'task',i[11],date])
     
     # If patient already completed treatment planning, return 0. Else return the predicted date.
     if prediction==0:
