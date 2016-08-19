@@ -1,1 +1,1 @@
-# ML_Algorithm_MUHC
+# MUHC Machine Learning Treatment Planning Algorithm
