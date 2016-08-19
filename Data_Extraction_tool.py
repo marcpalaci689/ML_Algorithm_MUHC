@@ -12,6 +12,19 @@ import mysql.connector
 from datetime import timedelta as td
 import holidays
 import pickle
+import progressbar
+
+progress = 0
+
+# A function that returns a loading progressbar for printing to the console
+def print_progress():
+    global progress
+    if progress < 18:
+        print('['+'#'*2*progress+' '*2*(18-progress)+']  ',round((100/18)*progress,0),'%'+' '*30,end='\r')
+        progress+=1
+    else:
+        print('['+'#'*2*progress+' '*2*(18-progress)+']  '+'100%'+' '*30 + '\n')
+        progress = 0
 
 
 ### This function returns the number of business days (to the fraction) between two datetimes
@@ -108,8 +121,9 @@ def query_database(DB):
     cnx=mysql.connector.connect(user='root',password='service', database=DB)
     cur=cnx.cursor()
     ### Fetch data from database
-    print('----------------- querying database ------------------')
-    start=time.time()
+    print('Querying database... ',end='')
+    print_progress()
+
     cur.execute(''' SELECT * FROM
     (SELECT  Patient.PatientSerNum, Diagnosis.DiagnosisCode, Priority.PriorityCode, Alias.AliasName, Appointment.ScheduledStartTime, Priority.CreationDate,
     Patient.Sex, Patient.DateOfBirth,Appointment.ActivityInstanceAriaSer, Appointment.ScheduledEndTime, Priority.DueDateTime
@@ -147,15 +161,21 @@ def query_database(DB):
 
      
     data=cur.fetchall()
-    end = time.time()
-    print('--------------- done in %.3f seconds ---------------\n' %(end-start))
+
+
     data_file = 'data.pkl'
     file = open(data_file,'wb')
     pickle.dump(data,file)
     file.close()
     return data
 
+# Sometimes Ct-Sims will be performed before a priority is actually opened for a patient. This results with a PrioritySerNum set to 0.This Ct-Sim can be useful... but since the querying
+# is done via JOIN statements then these Ct-Sims are not captured. Hence this following function looks for no priority Ct-Sims and adds them to the previously obtained data. 
 def add_nopriorityCT(DB,data):
+    
+    print('Add No Priority Ct-Sims to data... ',end='')
+    print_progress()
+
     new_data=[]
 
     ct_cnx=mysql.connector.connect(user='root',password='service', database=DB)
@@ -188,6 +208,9 @@ def add_nopriorityCT(DB,data):
     new_data.sort(key=lambda x:[x[0],x[4]])
     return new_data
 
+# This function is not used but follows the same logic as the no priority Ct-Sims. The reason I did not end up using this function is that from observation I saw that the only time 
+# this function adds data is when the COMPLETE treatment course has no priority attached to it... and in this case there is no telling if it is a mistake or the data is just not trustworthy.
+# Also perhaps in reality these treatment courses are supposed to be P1 or P2 (most probably)
 def add_nopriorityTasks(DB,data):
     new_data=[]
 
@@ -221,6 +244,9 @@ def add_nopriorityTasks(DB,data):
     new_data.sort(key=lambda x:[x[0],x[4]])
     return new_data
 
+# This function is for extraction of End Of Treatment Note Tasks without a priority attached to them. The reason I did not end up using this function is that from observation I saw that the only time 
+# this function adds data is when the COMPLETE treatment course has no priority attached to it... and in this case there is no telling if it is a mistake or the data is just not trustworthy.
+# Also perhaps in reality these treatment courses are supposed to be P1 or P2 (most probably)
 def add_nopriorityEOTNT(DB,data):
     new_data = []
     EOTNT_cnx=mysql.connector.connect(user='root',password='service', database=DB)
@@ -275,8 +301,9 @@ def dosimetry(DB):
 
 ### filter out duplicate ONLY WHEN THEY ARE CONSECUTIVE keeping only the first instance
 def filter_out_duplicates(data):
-    print('-------------- filtering out duplicates --------------')
-    start=time.time()
+    print('Filtering out duplicates... ',end='')
+    print_progress()
+
     filtered_data = []
     patientID=data[0][0]
     last_alias='NONE'
@@ -301,14 +328,14 @@ def filter_out_duplicates(data):
             last_alias = current_alias
             last_priority = current_priority
             patientID = i[0]
-    end = time.time()
-    print('---------------- Done in %.3f seconds ---------------\n' %(end-start))
+    
     return filtered_data
 
 ### get a list of all occuring sequences and record all patients that never get to READY FOR TREATMENT
 def filter_out_incompletes(filtered_data):
-    print('--------- filtering out incomplete sequences ---------')
-    start=time.time()
+    print('Filtering out incomplete sequences... ',end='')
+    print_progress()
+
     patient = []
     incomplete_patient=[]                              
     sequenceDB =[]
@@ -340,12 +367,13 @@ def filter_out_incompletes(filtered_data):
         else:
             filtered_data_2.append(i)
 
-    end=time.time()
-    print('---------------- done in %.3f seconds ---------------\n' %(end-start))
     return filtered_data_2
 
 
 def get_MR_time(data):
+    print('Calculating Medically Ready Date... ',end='')
+    print_progress()
+
     new_data = []
     for i in data:
         if i[1]=='0' and i[2]!='0':
@@ -371,8 +399,9 @@ def get_MR_time(data):
 ### Now insert 'Medically Ready' task into sequences
 
 def insert_MR(data):
-    print('----------- inserting Medically Ready Task -----------')
-    start = time.time()
+    print('Inserting Medically Ready Task... ',end='')
+    print_progress()
+
     new_data = []
     final_data = []
     # create a list to keep track of patients that follow illogical Ready For Treatment times
@@ -422,8 +451,6 @@ def insert_MR(data):
             final_data.append(list(i[:5]+i[6:]))
         else:
             final_data.append(list(i[:5]))
-    end = time.time() 
-    print('---------------- done in %.3f seconds ---------------\n' %(end-start))
     return final_data            
 
 
@@ -432,8 +459,9 @@ def insert_MR(data):
 
 
 def delete_incomplete_sequences(data,alias_index):
-    print('----------- deleting incomplete sequences ------------')
-    start = time.time()
+    print('Deleting incomplete sequences... ',end='')
+    print_progress()
+
     MD   = []
     DOSE = []
 
@@ -479,15 +507,14 @@ def delete_incomplete_sequences(data,alias_index):
         else:
             filtered_data.append(i)
             
-    end = time.time()
-    print('---------------- done in %.3f seconds ---------------\n' %(end-start))
     return filtered_data
 
 
 ### Function that looks at each patient and cuts his sequence into subsequences if he goes through more than 1 treatment
 def cut_sequences(data):
-    print('------------- breaking sequences apart ---------------')
-    start = time.time()
+    print('Breaking sequences apart... ',end='')
+    print_progress()
+
     new_data  = []
     patientID = data[0][0]
     n=0
@@ -514,15 +541,14 @@ def cut_sequences(data):
                 line.append(n)
             else:
                 new_data.append([n]+i)
-                
-    end = time.time()
-    print('---------------- done in %.3f seconds ---------------\n' %(end-start))            
+          
     return new_data,line
 
 ### Some sub-sequences have 2 Medically Ready tasks, only keep the most recent
 def del_duplicate_MR(data,duplicates):
-    print('---- Keeping only last MEDICALLY READY instance ------')
-    start = time.time()
+    print('Keeping only last MEDICALLY READY instance... ',end='')
+    print_progress()
+
     new_data = []
     for i in range(len(data)-1):
         if data[i][0] in duplicates and data[i][4] == 'MEDICALLY READY':
@@ -533,15 +559,14 @@ def del_duplicate_MR(data,duplicates):
         else:
             new_data.append(data[i])
 
-    end = time.time()
-    print('---------------- done in %.3f seconds ---------------\n' %(end-start)) 
     return new_data
                 
 
 ### Function that looks at sub-sequences and keeps only first instance of alias
 def first_instances(data):
-    print('---------- retaining only first instances ------------')
-    start = time.time()
+    print('Retaining only first instances... ',end='')
+    print_progress()
+
     new_data = []
     sequence=[]
     patientID = data[0][0]
@@ -557,14 +582,14 @@ def first_instances(data):
                 sequence.append(i[4])
             else:
                 continue
-    end = time.time()
-    print('---------------- done in %.3f seconds ---------------\n' %(end-start)) 
+
     return new_data
 
 ### Final filter to get rid of the subsequences that do not get to Ready For Treatment or First Treatment
 def final_filter(data):
-    print('--------- filter out incomplete sequences ------------')
-    start = time.time()
+    print('Filter out incomplete sequences... ',end='')
+    print_progress()
+
     new_data = []
     patientID=data[0][0]
     incomplete_patient=[]
@@ -587,16 +612,15 @@ def final_filter(data):
         else:
             continue
 
-    end = time.time()
-    print('---------------- done in %.3f seconds ---------------\n' %(end-start)) 
     return new_data
 
 
 # This function check each sequence and makes sure that MEDICALLY READY,READY FOR MD CONTOUR,READY FOR DOSE CALCULATION
 # and READY FOR TREATMENT Are in fact in the right order 
 def right_sequence(data):
-    print('------ Deleting sequences that are out of order ------')
-    start = time.time()
+    print('Deleting sequences that are out of order... ',end='')
+    print_progress()
+
     perfect_sequence = ['Ct-Sim','READY FOR MD CONTOUR','READY FOR DOSE CALCULATION', 'READY FOR TREATMENT']
     patientID = data[0][0]
     if data[0][4] in perfect_sequence:
@@ -626,16 +650,15 @@ def right_sequence(data):
         else:
             new_data.append(i)
             
-    end = time.time()
-    print('---------------- done in %.3f seconds ---------------\n' %(end-start)) 
     return new_data
 
 # Dates are not extremely reliable, and so if we inspect the data, we must
 # set limits to the amount of time each step can take. If a sequence cannot satisfy
 # these time constraints, it should be removed from the data
 def delete_irregular_sequences(data):
-    print('------------ delete irregular sequences --------------')
-    start = time.time()    
+    print('Delete irregular sequences... ',end='')
+    print_progress()
+
     irregular_patients = []
     new_data = []
     patientID = data[0][0]
@@ -689,14 +712,13 @@ def delete_irregular_sequences(data):
         if i[0] not in irregular_patients:
             new_data.append(i)
 
-    end = time.time()
-    print('---------------- done in %.3f seconds ---------------\n' %(end-start)) 
     return new_data        
             
 def get_cancer_type(data,DB):
     # query database to get cancer types  associated with diagnosis code
-    print('-------- Replace Cancer Code by Cancer Type ----------')
-    start = time.time()
+    print('Replace Cancer Code by Cancer Type... ',end='')
+    print_progress()
+
     diagnosiscode,cancer = get_cancer(DB)
     new_data = []
     for i in data:
@@ -705,8 +727,7 @@ def get_cancer_type(data,DB):
             new_data.append(i[:2] + [cantype] + i[3:])
         except ValueError:
             new_data.append(i[:2] + ['Other'] + i[3:])
-    end = time.time()
-    print('---------------- done in %.3f seconds ---------------\n' %(end-start))
+
     file = open('filtered_data.pkl','wb')
     pickle.dump(new_data,file)
     file.close() 
@@ -714,8 +735,9 @@ def get_cancer_type(data,DB):
 
 # This function takes the filtered data and places it in a dictionary
 def create_dictionary(data):
-    print('------------ Creating Dictionary of Data -------------')
-    start = time.time()
+    print('Creating Dictionary of Data... ',end='')
+    print_progress()
+
     DataDict = {}
     MR   = []
     CT   = []
@@ -741,14 +763,13 @@ def create_dictionary(data):
             RFT.append(i)
     DataDict['MR'],DataDict['CT'],DataDict['MD'],DataDict['DOSE'],DataDict['PRES'],DataDict['PHYS'],DataDict['RFT'] = MR,CT,MD,DOSE,PRES,PHYS,RFT
 
-    end = time.time()
-    print('---------------- done in %.3f seconds ---------------\n' %(end-start))    
     return DataDict
 
 
 def get_dosimetry_load(datadict,DB):
-    print('-------------- Adding Dosimetry Loads ----------------')
-    start = time.time()
+    print('Adding Dosimetry Loads... ',end='')
+    print_progress()
+
     new_data = []
     dosdata = dosimetry(DB)
     data = datadict['DOSE']
@@ -762,12 +783,13 @@ def get_dosimetry_load(datadict,DB):
         i.append(str(load))
         new_data.append(i)
     datadict['DOSE'] = new_data
-    end = time.time()
-    print('---------------- done in %.3f seconds ---------------\n' %(end-start))   
+ 
     return datadict
 
 def get_MR_load(datadict):
-    print('------------------ Adding MD Loads -------------------')
+    print('Adding MD Loads... ',end='')
+    print_progress()
+
     start = time.time()
     timetable=[]
     new_MR_data=[]
@@ -789,72 +811,73 @@ def get_MR_load(datadict):
     pickle.dump(datadict,file)
     file.close()
 
-    end = time.time()
-    print('---------------- done in %.3f seconds ---------------\n' %(end-start)) 
     return datadict
 
 
 def ExtractData(DB):
+    # initialize a progress bar 
+    print('***********************************************************************************')
+    print('*                             Extracting and Cleaning Data                        *')
+    print('***********************************************************************************\n')
+
+
     raw_data0 = query_database(DB)
-    print('rawdata0')
-    print(len(raw_data0))
-    raw_data00 = add_nopriorityCT(DB,raw_data0)
 
-    print('rawdata00')
-    print(len(raw_data00))
-    raw_data000 = add_nopriorityTasks(DB,raw_data00)
-    print('rawdata000')
-    print(len(raw_data000))
-    raw_data = add_nopriorityEOTNT(DB,raw_data000)
-    print('rawdata')
-    print(len(raw_data))
 
+    raw_data = add_nopriorityCT(DB,raw_data0)
+
+    
     filtered_data1  = filter_out_duplicates(raw_data)
-    print('filtered_data1')
-    print(len(filtered_data1))
+  
+    
     filtered_data2 = filter_out_incompletes(filtered_data1)
-    print('filtered_data2')
-    print(len(filtered_data2))
+
+    
     filtered_data2 = get_MR_time(filtered_data2)
-    print('filtered_data2')
-    print(len(filtered_data2))
+   
+    
     filtered_data3 = insert_MR(filtered_data2)
-    print('filtered_data3')
-    print(len(filtered_data3))
+
+    
     filtered_data4 = delete_incomplete_sequences(filtered_data3,3)
-    print('filtered_data4')
-    print(len(filtered_data4))
+
+    
     filtered_data5,duplicates = cut_sequences(filtered_data4)
-    print('filtered_data5')
-    print(len(filtered_data5))
+ 
+    
     filtered_data6 = del_duplicate_MR(filtered_data5,duplicates)
-    print('filtered_data6')
-    print(len(filtered_data6))
+    
+    
     filtered_data7 = delete_incomplete_sequences(filtered_data6,4)
-    print('filtered_data7')
-    print(len(filtered_data7))
+    
+    
     filtered_data8 = first_instances(filtered_data7)
-    print('filtered_data8')
-    print(len(filtered_data8))
+    
+    
     filtered_data9 = final_filter(filtered_data8)
-    print('filtered_data9')
-    print(len(filtered_data9))
+    
+    
     filtered_data10 = right_sequence(filtered_data9)
-    print('filtered_data10')
-    print(len(filtered_data10))
+    
+    
     filtered_data11 = delete_irregular_sequences(filtered_data10)
-    print('filtered_data11')
-    print(len(filtered_data11))
+    
+    
     filtered_data12 = get_cancer_type(filtered_data11,DB)
-    print('filtered_data12')
-    print(len(filtered_data12))
+    
+      
     filtered_data_dictionary = create_dictionary(filtered_data12)
+    
+       
     data_dict = get_dosimetry_load(filtered_data_dictionary,DB)
+    
+        
     data_dict2 = get_MR_load(data_dict)
+    
+        
     return data_dict2
 
 
-#26560
 
 
 

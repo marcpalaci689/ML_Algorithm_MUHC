@@ -35,7 +35,7 @@ def patient_history(DB,Patient):
     cur=cnx.cursor()
     start=time.time()
     cur.execute(''' SELECT  Patient.PatientSerNum, Diagnosis.DiagnosisCode, Priority.PriorityCode, Alias.AliasName, Appointment.ScheduledStartTime, Priority.CreationDate,
-    Patient.Sex, Patient.DateOfBirth,Appointment.ActivityInstanceAriaSer, Appointment.ScheduledEndTime, Priority.DueDateTime
+    Patient.Sex, Patient.DateOfBirth,Appointment.ActivityInstanceAriaSer, Appointment.ScheduledEndTime, Priority.DueDateTime, Appointment.AppointmentAriaSer
     FROM Appointment JOIN Patient ON Appointment.PatientSerNum=Patient.PatientSerNum 
     JOIN Diagnosis ON Appointment.DiagnosisSerNum = Diagnosis.DiagnosisSerNum
     JOIN Priority ON Appointment.PrioritySerNum = Priority.PrioritySerNum 
@@ -43,7 +43,7 @@ def patient_history(DB,Patient):
     WHERE Appointment.PatientSerNum = %s AND Appointment.Status!='Cancelled' AND Appointment.State!='Deleted' AND Appointment.AliasSerNum!=6
     UNION ALL SELECT
     Patient.PatientSerNum, Diagnosis.DiagnosisCode, Priority.PriorityCode, Alias.AliasName, Task.CreationDate, Priority.CreationDate, Patient.Sex,Patient.DateOfBirth,
-    Task.ActivityInstanceAriaSer, Task.CompletionDate, Priority.DueDateTime
+    Task.ActivityInstanceAriaSer, Task.CompletionDate, Priority.DueDateTime, Task.TaskAriaSer
     FROM Task JOIN Patient ON Task.PatientSerNum=Patient.PatientSerNum 
     JOIN Diagnosis ON Task.DiagnosisSerNum = Diagnosis.DiagnosisSerNum
     JOIN Priority ON Task.PrioritySerNum = Priority.PrioritySerNum 
@@ -51,7 +51,7 @@ def patient_history(DB,Patient):
     WHERE Task.PatientSerNum = %s AND Task.Status != 'Cancelled' AND Task.State != 'Deleted' AND Task.AliasSerNum!=6
     UNION ALL SELECT
     Patient.PatientSerNum, Diagnosis.DiagnosisCode, Priority.PriorityCode, Alias.AliasName, Task.DueDateTime, Priority.CreationDate, Patient.Sex,Patient.DateOfBirth,
-    Task.ActivityInstanceAriaSer, Task.CompletionDate, Priority.DueDateTime
+    Task.ActivityInstanceAriaSer, Task.CompletionDate, Priority.DueDateTime, Task.TaskAriaSer
     FROM Task JOIN Patient ON Task.PatientSerNum=Patient.PatientSerNum 
     JOIN Diagnosis ON Task.DiagnosisSerNum = Diagnosis.DiagnosisSerNum
     JOIN Priority ON Task.PrioritySerNum = Priority.PrioritySerNum 
@@ -66,21 +66,21 @@ def patient_history(DB,Patient):
     ct_cur = ct_cnx.cursor()
 
     ct_cur.execute('''SELECT  Patient.PatientSerNum, Diagnosis.DiagnosisCode, Appointment.PrioritySerNum, Alias.AliasName, Appointment.ScheduledStartTime, Appointment.PrioritySerNum,
-    Patient.Sex, Patient.DateOfBirth,Appointment.ActivityInstanceAriaSer, Appointment.ScheduledEndTime, Appointment.PrioritySerNum
+    Patient.Sex, Patient.DateOfBirth,Appointment.ActivityInstanceAriaSer, Appointment.ScheduledEndTime, Appointment.PrioritySerNum, Appointment.AppointmentAriaSer
     FROM Appointment JOIN Patient ON Appointment.PatientSerNum=Patient.PatientSerNum 
     JOIN Diagnosis ON Appointment.DiagnosisSerNum = Diagnosis.DiagnosisSerNum
     JOIN Alias ON Appointment.AliasSerNum = Alias.AliasSerNum 
     WHERE Appointment.PatientSerNum = %s AND Appointment.AliasSerNum = 3 AND Appointment.Status != 'Cancelled' AND Appointment.PrioritySerNum=0
     UNION ALL
     SELECT  Patient.PatientSerNum, Appointment.DiagnosisSerNum, Appointment.PrioritySerNum, Alias.AliasName, Appointment.ScheduledStartTime, Appointment.PrioritySerNum,
-    Patient.Sex, Patient.DateOfBirth,Appointment.ActivityInstanceAriaSer, Appointment.ScheduledEndTime, Appointment.PrioritySerNum
+    Patient.Sex, Patient.DateOfBirth,Appointment.ActivityInstanceAriaSer, Appointment.ScheduledEndTime, Appointment.PrioritySerNum, Appointment.AppointmentAriaSer
     FROM Appointment JOIN Patient ON Appointment.PatientSerNum=Patient.PatientSerNum 
     JOIN Alias ON Appointment.AliasSerNum = Alias.AliasSerNum 
     WHERE Appointment.PatientSerNum = %s AND Appointment.AliasSerNum = 3 AND Appointment.Status != 'Cancelled' AND Appointment.PrioritySerNum=0 AND
     Appointment.DiagnosisSerNum=0
     UNION ALL
     SELECT  Patient.PatientSerNum, Appointment.DiagnosisSerNum, Priority.PriorityCode, Alias.AliasName, Appointment.ScheduledStartTime, Priority.CreationDate,
-    Patient.Sex, Patient.DateOfBirth,Appointment.ActivityInstanceAriaSer, Appointment.ScheduledEndTime, Priority.DueDateTime
+    Patient.Sex, Patient.DateOfBirth,Appointment.ActivityInstanceAriaSer, Appointment.ScheduledEndTime, Priority.DueDateTime, Appointment.AppointmentAriaSer
     FROM Appointment JOIN Patient ON Appointment.PatientSerNum=Patient.PatientSerNum 
     JOIN Priority ON Appointment.PrioritySerNum = Priority.PrioritySerNum 
     JOIN Alias ON Appointment.AliasSerNum = Alias.AliasSerNum 
@@ -92,6 +92,7 @@ def patient_history(DB,Patient):
     #Add non-priority CTs to the data 
     data = data_1 + ct_data
 
+
     # Filter out unnecessary aliases and priorities. Also set the maximum time limit to 150 days
     current_date = datetime.datetime.today()
     beginning_date = current_date - datetime.timedelta(days=150)
@@ -101,6 +102,7 @@ def patient_history(DB,Patient):
         if (i[2] in ['SGAS_P3', 'SGAS_P4']) and (i[3] in aliases) and (i[4]>beginning_date):
             ordered_data.append(i)
     ordered_data.sort(key=lambda x : x[4])
+
 
     # Filter out consecutive duplicates... keep only first instance
     unique_data = []
@@ -199,7 +201,15 @@ def patient_history(DB,Patient):
         except ValueError:
             history_withDiagnosisappend(i[:1] + ['Other'] + i[2:])
     
-    return history_withDiagnosis
+    # Delete End Of Treatment Note Task since we no longer have any use of it.
+    final_history = []
+    for i in history_withDiagnosis:
+        if i[3] == 'End of Treament Note Task':
+            continue
+        else:
+            final_history.append(i)
+
+    return final_history
 
 
 

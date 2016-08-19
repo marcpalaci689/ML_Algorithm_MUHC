@@ -12,7 +12,7 @@ import warnings
 # function that will build the prediction matrix
 def Build_Prediction_Matrix(data,DB):
     # We only need the last step of the patients data to make a prediction, so only keep that step. Also turn into an array for ease of manipulation
-    prediction_step = np.array(data[len(data)-1]).T              
+    prediction_step = np.array(data[len(data)-1]).T            
     # Use birthdate to calculate age and then rename column to age
     age = relativedelta(prediction_step[4], prediction_step[7]).years
     # record the stage from which prediction is needed

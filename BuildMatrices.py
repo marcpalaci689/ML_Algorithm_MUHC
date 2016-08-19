@@ -5,6 +5,20 @@ import CountDays
 import pickle
 import datetime
 
+progress = 0
+
+# A function that returns a loading progressbar for printing to the console
+def print_progress():
+    global progress
+    if progress < 28:
+        print('['+'#'*progress+' '*(28-progress)+']  ',round((100/28)*progress,0),'%' + ' '*20,end='\r')
+        progress+=1
+    else:
+        print('['+'#'*progress+' '*(28-progress)+']  '+'100%'+' '*20 +'\n')
+        progress = 0
+
+
+
 def get_MR_date(duedate,priority):
     MRdate = []
     for i in range(len(priority)):
@@ -111,7 +125,13 @@ def build_matrices(DB):
     # turn data of dictionary into a DataFrame to give it matrix-like properties for ease of manipulation
     dic = ExDat.ExtractData(DB)
     col_dict = {}
-    print('============> Building X and y matrices <=============')
+
+    print('***********************************************************************************')
+    print('*                            Building Training Matrices                           *')
+    print('***********************************************************************************\n')
+    print('Calculating features from data...')
+    print_progress()
+
     for key in dic:
         dic[key] = pd.DataFrame(dic[key])
         if key == 'DOSE':
@@ -122,10 +142,12 @@ def build_matrices(DB):
             dic[key].columns = ['id','patientid','diagnosis','priority','alias','timestamp','sex','birthdate','activitynum','completiondate','duedate']
         # Filter out when sex is labeled as 'Unkown'
         dic[key] = dic[key][dic[key].sex != 'Unknown']
+        print_progress()
 
     # combine data from each step with the data from RFT in order to calculate time difference
     for key in dic:
         if key == 'RFT':
+            print_progress()
             continue
         else:
             dic[key] = pd.merge(dic[key],dic['RFT'],how='inner', on='id',suffixes=('', '_y'))
@@ -169,10 +191,12 @@ def build_matrices(DB):
 
             if key in ['MR','CT','PRES','PHYS']:
                 dic[key].drop(['activitynum','alias','completiondate','patientid','endtime'], axis=1, inplace=True)
+            print_progress()
 
     #add the current speed of the planning process as a feature
     for key in dic:
         if key in ['MR','RFT']:
+            print_progress()
             continue
         #dic[key] = pd.merge(dic[key],dic['MR'], how='inner' , on='id' , suffixes=('','_y'))
         #dic[key].reset_index(drop=True, inplace=True)
@@ -180,21 +204,23 @@ def build_matrices(DB):
         dic[key]['timestamp_y'] = get_MR_date(dic[key]['duedate'],dic[key]['priority'])
         dic[key]['timesofar'] = timesofar(dic[key]['timestamp_y'],dic[key]['timestamp'],key)
         dic[key].drop('timestamp_y',axis=1,inplace=True)
-             
+        print_progress()     
 
     # add weeks left until deadline as a feature
     for key in dic:
         if key in ['MR','RFT']:
+            print_progress()
             continue
         deadline = list(dic[key]['duedate'])
         timestamp = list(dic[key]['timestamp'])
         days_left = days_to_deadline(deadline,timestamp)
         dic[key]['weekstodeadline'] = days_left
-
+        print_progress()
 
     for key in dic:
         if key == 'RFT':
             continue
+        print('Building ' + key + ' Sparse Matrix... ', end='')
         # create sparse matrices while keeping track of which column is what
         if key == 'CT':
             colsfordummy = ['diagnosis','priority','primaryoncologist','sex','weekstodeadline']
@@ -218,6 +244,6 @@ def build_matrices(DB):
         tempDat = np.hstack((tempDat,dic[key]['timediff'].reshape(len(dic[key]['timediff']), 1)))
         dic[key] = tempDat
         col_dict[key] = column
-        print('...%s X and y matrices built...' %(key)) 
-    print('=================> Build Completed <================== \n')
+        print('Done') 
+    
     return dic, col_dict
