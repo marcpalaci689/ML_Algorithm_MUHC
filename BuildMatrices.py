@@ -7,18 +7,19 @@ import datetime
 
 progress = 0
 
-# A function that returns a loading progressbar for printing to the console
+# A function that returns a loading progressbar for printing to the console (serves no functional purpose)
 def print_progress():
     global progress
-    if progress < 28:
-        print('['+'#'*progress+' '*(28-progress)+']  ',round((100/28)*progress,0),'%' + ' '*20,end='\r')
+    if progress < 21:
+        print('['+'#'*progress+' '*(21-progress)+']  ',round((100/21)*progress,0),'%' + ' '*10,end='\r')
         progress+=1
     else:
-        print('['+'#'*progress+' '*(28-progress)+']  '+'100%'+' '*20 +'\n')
+        print('['+'#'*progress+' '*(21-progress)+']  '+'100%'+' '*10 +'\n')
         progress = 0
 
 
-
+# This function takes an array of all due dates as well as an array of the priorities and returns an array of the Medically Ready date. For a P3 the Mediaclly
+# Ready date is DueDate-14 days and for P4 the Medically Ready date is DuedDate-28 days
 def get_MR_date(duedate,priority):
     MRdate = []
     for i in range(len(priority)):
@@ -39,45 +40,8 @@ def get_MR_date(duedate,priority):
         MRdate.append(d)
     return MRdate   
 
-
-
-def timesofar(dfstart, dfend, key):
-    t = []
-    timesofar = get_number_days(dfstart, dfend)
-    if key == 'CT':
-        extreme_limit = 0.1
-        bottom_limit = 1
-        top_limit = 2
-    elif key == 'MD':
-        extreme_limit = 0.2
-        bottom_limit = 2
-        top_limit = 4
-    elif key == 'DOSE':
-        extreme_limit = 0.3
-        bottom_limit = 3
-        top_limit = 5
-    elif key == 'PRES':
-        extreme_limit = 0.35
-        bottom_limit = 3.25
-        top_limit = 5.5
-    elif key == 'PHYS':
-        extreme_limit = 0.4
-        bottom_limit = 3.5
-        top_limit = 6
-    for i in timesofar:
-        if i == 'NA':
-            t.append('NA')
-            continue
-        if i <= extreme_limit:
-            t.append('extremely fast')
-        elif i <= bottom_limit:
-            t.append('very fast')
-        elif i <= top_limit:
-            t.append('fast')
-        else:
-            t.append('normal')
-    return t
-
+# This function takes an array of beginnning dates and ancalculates the differences in business days (taking holidays into account) and ouputs an array
+# of business days
 def get_number_days(dfstart, dfend):
     # get the number of days not including the weekends
     A = [d for d in dfstart]
@@ -85,6 +49,10 @@ def get_number_days(dfstart, dfend):
     return CountDays.DayDifference(A,B,'QC')
 
 
+# This function takes an array of the SGAS due date as well as an array of timestamps and returns the time left to the SGAS due date.
+# The function does not give an exact number of days but rather groups the time left until SGAS due date as either 'Over 3 weeks', '3 weeks',
+# '2 weeks', 1'week', '3 days', 'Passed Deadline'. From research I found that grouping time until deadline gives better results than actually
+# returning simply the number of days left.
 def days_to_deadline(deadline,timestamp):
     days_left = []
     for i in range(len(deadline)):
@@ -109,16 +77,20 @@ def days_to_deadline(deadline,timestamp):
     return days_left
 
 
+# This function is the main callable function that builds the X and y matrices which are used in the Train_Algorithm.py script to train.
 def build_matrices(DB):
     
-    # get primary oncologists and merge with Ct-Sim data to create a list of primary oncologist with the corresponding patient ID
+    # from the Data_Extraction_tool get primary oncologists and merge with Ct-Sim data to create a list of primary oncologist with the corresponding patient ID
     primoncs=ExDat.get_primary_oncologist(DB)
+    # trun primoncs into a dataframe
     primoncDataFrame = pd.DataFrame(primoncs)
     primoncDataFrame.columns = ['patientid','primaryoncologist']
+    # If there are duplicate rows keep only the first one.
     primoncDataFrame.drop_duplicates(subset='patientid', keep='first', inplace=True)
     
-    # get doctors and merge with MD data to create a list of doctors with the corresponding ID
+    # from the Data_Extraction_tool get doctors and merge with MD data to create a list of doctors with the corresponding ID
     docs = ExDat.get_doctors(DB)
+    # turn docs into a dataframe
     docDataFrame = pd.DataFrame(docs)
     docDataFrame.columns = ['patientid','timestamp','activitynum','doctor']
 
@@ -126,9 +98,10 @@ def build_matrices(DB):
     dic = ExDat.ExtractData(DB)
     col_dict = {}
 
-    print('***********************************************************************************')
-    print('*                            Building Training Matrices                           *')
-    print('***********************************************************************************\n')
+
+    print('***************************************************************')
+    print('*                  Building Training Matrices                 *')
+    print('***************************************************************\n')
     print('Calculating features from data...')
     print_progress()
 
@@ -137,7 +110,7 @@ def build_matrices(DB):
         if key == 'DOSE':
             dic[key].columns = ['id','patientid','diagnosis','priority','alias','timestamp','sex','birthdate','activitynum','completiondate','duedate','dosimetryload']
         elif key == 'MR' :
-            dic[key].columns = ['id','patientid','diagnosis','priority','alias','timestamp','sex','birthdate','activitynum','completiondate','duedate','patientload']
+            dic[key].columns = ['id','patientid','diagnosis','priority','alias','timestamp','sex','birthdate','activitynum','completiondate','duedate']
         else:
             dic[key].columns = ['id','patientid','diagnosis','priority','alias','timestamp','sex','birthdate','activitynum','completiondate','duedate']
         # Filter out when sex is labeled as 'Unkown'
@@ -172,41 +145,30 @@ def build_matrices(DB):
             dic[key] = dic[key][dic[key].timediff > 0]
             dic[key].reset_index(drop=True, inplace=True)
 
+            # add the primary oncologist to the CT and MR data by joining primoncDataFrame and dic['CT'] (and dic['MR']) on the patientID
             if key == 'CT' or key == 'MR':
                 dic[key] = pd.merge(dic[key], primoncDataFrame, how='inner',on='patientid')
                 dic[key].reset_index(drop=True, inplace=True)
             
+            # add the MD contour tasked doctor by joining docDataFrame and dic['MD'] on 'patientid','timestamp' and 'activitynum'
             if key == 'MD':
                 dic[key] = pd.merge(dic[key],docDataFrame, how='inner', on=['patientid','timestamp','activitynum'])
                 dic[key].drop(['patientid','alias','endtime','activitynum','completiondate'], axis=1, inplace=True)
+                # since there may be duplicates (MD contour gets tasked to multiple doctors), keep only the first doctor that it got tasked to
                 dic[key].drop_duplicates(subset='id',keep='first', inplace=True)
                 dic[key].reset_index(drop=True, inplace=True)
                 
             
             if key == 'DOSE':
-                #dic[key] = pd.merge(dic[key],doseDataFrame, how='inner', on=['patientid','timestamp','activitynum'])
-                #dic[key].drop(['patientid','alias','endtime','activitynum','completiondate'], axis=1, inplace=True)
                 dic[key].drop_duplicates(subset='id', keep='first', inplace=True)
                 dic[key].reset_index(drop=True, inplace=True)
 
             if key in ['MR','CT','PRES','PHYS']:
                 dic[key].drop(['activitynum','alias','completiondate','patientid','endtime'], axis=1, inplace=True)
             print_progress()
+  
 
-    #add the current speed of the planning process as a feature
-    for key in dic:
-        if key in ['MR','RFT']:
-            print_progress()
-            continue
-        #dic[key] = pd.merge(dic[key],dic['MR'], how='inner' , on='id' , suffixes=('','_y'))
-        #dic[key].reset_index(drop=True, inplace=True)
-        #dic[key].drop(['sex_y','priority_y','diagnosis_y'], axis=1, inplace=True)
-        dic[key]['timestamp_y'] = get_MR_date(dic[key]['duedate'],dic[key]['priority'])
-        dic[key]['timesofar'] = timesofar(dic[key]['timestamp_y'],dic[key]['timestamp'],key)
-        dic[key].drop('timestamp_y',axis=1,inplace=True)
-        print_progress()     
-
-    # add weeks left until deadline as a feature
+    # add days left until deadline as a feature by using the days_to_deadline function defined above
     for key in dic:
         if key in ['MR','RFT']:
             print_progress()
@@ -221,7 +183,8 @@ def build_matrices(DB):
         if key == 'RFT':
             continue
         print('Building ' + key + ' Sparse Matrix... ', end='')
-        # create sparse matrices while keeping track of which column is what
+        # create sparse matrices while keeping track of which column is what. Note that the colsfordummy array defines exactly
+        # what features are used for each model
         if key == 'CT':
             colsfordummy = ['diagnosis','priority','primaryoncologist','sex','weekstodeadline']
         elif key == 'MD':
@@ -232,18 +195,26 @@ def build_matrices(DB):
             colsfordummy = ['diagnosis','priority','sex','weekstodeadline']
         else:
             colsfordummy = ['diagnosis','priority','primaryoncologist','sex']
+ 
         tempDat = dic[key]['age'].reshape(len(dic[key]['age']), 1)
-
+        
+        # initiate a column list that will keep track of the columns for each sparse matrix (this is important for prediction purposes, 
+        # since the prediction X matrix will have to have the exact same column configuration than the training X matrix)
         column = []
 
-
-        
+        # 
         for col in colsfordummy:
+            # This will stack all the columns
             column  = np.hstack((column,pd.get_dummies(dic[key][col]).columns))
+            # This will stack the dummy matrices
             tempDat = np.hstack((tempDat,pd.get_dummies(dic[key][col])))
+        # Finally once all the dummy matrices are stacked (which is actually the X matrix), stack the 'timediff' columns (also known as the y matrix)
         tempDat = np.hstack((tempDat,dic[key]['timediff'].reshape(len(dic[key]['timediff']), 1)))
+        
+        # replace the dictionary data with the sparse matrix equivalent
         dic[key] = tempDat
+        # once the columns have been stacked, save that column list into a dictionary
         col_dict[key] = column
-        print('Done') 
+        print('Done'+' '*5) 
     
     return dic, col_dict

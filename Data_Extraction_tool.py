@@ -1,10 +1,6 @@
 '''
-This script will query the devAEHRA database and extract a list of tuples containing all relevant tasks and appointments for each patient.
-Every new task/appointment will be a new tuple. The list is ordered first py patient number and then by date so that you can visualize
-the sequence of each patient chronologically. For this script to work the first you should keep the same exact column structure as in
-my queries. Any addictional needed information can be added afterwards (for example if you want to add another column it should work fine.
+This script is for extracting and cleaning the data for the Machine Learning Algorithm
 '''
-
 
 import datetime
 import time
@@ -16,18 +12,18 @@ import progressbar
 
 progress = 0
 
-# A function that returns a loading progressbar for printing to the console
+# A function that returns a loading progressbar for printing to the console (only for display purposes... no functional effect)
 def print_progress():
     global progress
-    if progress < 18:
-        print('['+'#'*2*progress+' '*2*(18-progress)+']  ',round((100/18)*progress,0),'%'+' '*30,end='\r')
+    if progress < 17:
+        print('['+'#'*progress+' '*(17-progress)+']  ',round((100/17)*progress,0),'%'+' '*8,end='\r')
         progress+=1
     else:
-        print('['+'#'*2*progress+' '*2*(18-progress)+']  '+'100%'+' '*30 + '\n')
+        print('['+'#'*progress+' '*(17-progress)+']  '+'100%'+' '*8 + '\n')
         progress = 0
 
 
-### This function returns the number of business days (to the fraction) between two datetimes
+### This function returns the number of business days (to the fraction) between two datetimes taking into account holidays and weekends
 def DayDifference(start_date,end_date,Province):
     start_time=time.time()
     d2=end_date
@@ -65,25 +61,6 @@ def get_primary_oncologist(DB):
     primonc = onc_cur.fetchall()
     return primonc
 
-            
-# This function will query the database and obtain the dosimetrist assigned to the Dose Calculation of each patient 
-def get_dosimetrist(DB):
-    dos_cnx = mysql.connector.connect(user='root',password='service', database=DB)
-    dos_cur = dos_cnx.cursor()
-
-    dos_cur.execute(''' SELECT Task.PatientSerNum, Task.CreationDate,Task.ActivityInstanceAriaSer, Resource.ResourceName
-    FROM Task JOIN Attendee ON Task.ActivityInstanceAriaSer = Attendee.ActivityInstanceAriaSer
-    JOIN Resource ON Attendee.ResourceSerNum = Resource.ResourceSerNum
-    WHERE Task.AliasSerNum = 22 AND Resource.ResourceType = 'Staff' AND CreationDate > '2012-01-01 00:00:00' ''')
-
-    dose = dos_cur.fetchall()
-    dosimetrists = []
-    for i in dose:
-        dosimetrists.append(i)
-    return dosimetrists
-
-
-
 # This function will query the database and obtain the doctor assigned to the MD contour of each patient 
 def get_doctors(DB):
     doc_cnx = mysql.connector.connect(user='root',password='service', database=DB)
@@ -100,6 +77,7 @@ def get_doctors(DB):
         doctors.append(i)
     return doctors
 
+# This function looks up the DiagnosisTranslation table and returns a lookup table so that a diagnosis code can easily be translated into a diagnosis
 def get_cancer(DB):
     can_cnx = mysql.connector.connect(user='root',password='service', database=DB)
     can_cur = can_cnx.cursor()
@@ -162,18 +140,19 @@ def query_database(DB):
      
     data=cur.fetchall()
 
-
+    '''
     data_file = 'data.pkl'
     file = open(data_file,'wb')
     pickle.dump(data,file)
     file.close()
+    '''
     return data
 
 # Sometimes Ct-Sims will be performed before a priority is actually opened for a patient. This results with a PrioritySerNum set to 0.This Ct-Sim can be useful... but since the querying
 # is done via JOIN statements then these Ct-Sims are not captured. Hence this following function looks for no priority Ct-Sims and adds them to the previously obtained data. 
 def add_nopriorityCT(DB,data):
     
-    print('Add No Priority Ct-Sims to data... ',end='')
+    print('Add No Priority Ct-Sims... ',end='')
     print_progress()
 
     new_data=[]
@@ -333,7 +312,7 @@ def filter_out_duplicates(data):
 
 ### get a list of all occuring sequences and record all patients that never get to READY FOR TREATMENT
 def filter_out_incompletes(filtered_data):
-    print('Filtering out incomplete sequences... ',end='')
+    print('Remove incomplete sequences... ',end='')
     print_progress()
 
     patient = []
@@ -371,7 +350,7 @@ def filter_out_incompletes(filtered_data):
 
 
 def get_MR_time(data):
-    print('Calculating Medically Ready Date... ',end='')
+    print('Calculating MR Date... ',end='')
     print_progress()
 
     new_data = []
@@ -399,7 +378,7 @@ def get_MR_time(data):
 ### Now insert 'Medically Ready' task into sequences
 
 def insert_MR(data):
-    print('Inserting Medically Ready Task... ',end='')
+    print('Inserting MR Task... ',end='')
     print_progress()
 
     new_data = []
@@ -455,11 +434,9 @@ def insert_MR(data):
 
 
 ### analyze the sequences and find which patients are missing an MD contour,
-### or a Dose calculation, hen delete these sequences
-
-
+### or a Dose calculation, then delete these sequences
 def delete_incomplete_sequences(data,alias_index):
-    print('Deleting incomplete sequences... ',end='')
+    print('Remove incomplete sequences... ',end='')
     print_progress()
 
     MD   = []
@@ -514,39 +491,47 @@ def delete_incomplete_sequences(data,alias_index):
 def cut_sequences(data):
     print('Breaking sequences apart... ',end='')
     print_progress()
-
+    # Initialize a 
     new_data  = []
     patientID = data[0][0]
     n=0
-    line=[]
+    # initiate a list that records all the sequeneces that have duplicate MEDICALLY READY tasks
+    duplicate_MR=[]
     flag=False
     for i in data:
+        # If the patientID has changed, cut the last sequence and start a new one
         if i[0] != patientID:
             flag=False
             patientID=i[0]
             n+=1
             new_data.append([n]+i)
+            # Keep a flag for MEDICALLY READY task to keep track if a sequence has duplicate MEDICALLY READY tasks
             if i[3] == 'MEDICALLY READY':
                 flag = True
         else:
+            # if the patientID has not changed, cut sequence if we have reached an End of Treatment Note Task
             if i[3] == 'End of Treament Note Task':
                 new_data.append([n]+i)
                 flag = False
                 n+=1
+            # if the patientID has not changed,and we observe the first MEDICALLY READY task of the seqeuence, set the MEDICALLY READY flag to true, and add to the new data. 
             elif i[3] == 'MEDICALLY READY' and flag==False:
                 new_data.append([n]+i)
                 flag = True
+            # If the patientID has not changed,and we observe a MEDICALLY READY when the MEDICALLY READY flag has already been set, then record this patientID for later.
+            # This means that this sequence has more than one MEDICALLY READY task and needs to be filtered later on.Also add to new data.    
             elif i[3] == 'MEDICALLY READY' and flag==True:
                 new_data.append([n]+i)
-                line.append(n)
+                duplicate_MR.append(n)
+            # If the patientID has not changed and we observe tasks other than "MEDICALLY READY" or "End of Treatment Note Task", add to the new data.    
             else:
                 new_data.append([n]+i)
           
-    return new_data,line
+    return new_data,duplicate_MR
 
 ### Some sub-sequences have 2 Medically Ready tasks, only keep the most recent
 def del_duplicate_MR(data,duplicates):
-    print('Keeping only last MEDICALLY READY instance... ',end='')
+    print('Delete MR duplicates... ',end='')
     print_progress()
 
     new_data = []
@@ -564,7 +549,7 @@ def del_duplicate_MR(data,duplicates):
 
 ### Function that looks at sub-sequences and keeps only first instance of alias
 def first_instances(data):
-    print('Retaining only first instances... ',end='')
+    print('Keeping first instances... ',end='')
     print_progress()
 
     new_data = []
@@ -587,7 +572,7 @@ def first_instances(data):
 
 ### Final filter to get rid of the subsequences that do not get to Ready For Treatment or First Treatment
 def final_filter(data):
-    print('Filter out incomplete sequences... ',end='')
+    print('Remove incomplete sequences... ',end='')
     print_progress()
 
     new_data = []
@@ -618,7 +603,7 @@ def final_filter(data):
 # This function check each sequence and makes sure that MEDICALLY READY,READY FOR MD CONTOUR,READY FOR DOSE CALCULATION
 # and READY FOR TREATMENT Are in fact in the right order 
 def right_sequence(data):
-    print('Deleting sequences that are out of order... ',end='')
+    print('Remove unordered sequences... ',end='')
     print_progress()
 
     perfect_sequence = ['Ct-Sim','READY FOR MD CONTOUR','READY FOR DOSE CALCULATION', 'READY FOR TREATMENT']
@@ -715,8 +700,8 @@ def delete_irregular_sequences(data):
     return new_data        
             
 def get_cancer_type(data,DB):
-    # query database to get cancer types  associated with diagnosis code
-    print('Replace Cancer Code by Cancer Type... ',end='')
+    # query database to get the trabslation of the cancer codes into actualy cancer types.
+    print('Get cancer diagnosis... ',end='')
     print_progress()
 
     diagnosiscode,cancer = get_cancer(DB)
@@ -727,15 +712,16 @@ def get_cancer_type(data,DB):
             new_data.append(i[:2] + [cantype] + i[3:])
         except ValueError:
             new_data.append(i[:2] + ['Other'] + i[3:])
-
+    '''
     file = open('filtered_data.pkl','wb')
     pickle.dump(new_data,file)
-    file.close() 
+    file.close()
+    ''' 
     return new_data
 
 # This function takes the filtered data and places it in a dictionary
 def create_dictionary(data):
-    print('Creating Dictionary of Data... ',end='')
+    print('Creating data dictionary... ',end='')
     print_progress()
 
     DataDict = {}
@@ -767,7 +753,7 @@ def create_dictionary(data):
 
 
 def get_dosimetry_load(datadict,DB):
-    print('Adding Dosimetry Loads... ',end='')
+    print('Adding dosimetry loads... ',end='')
     print_progress()
 
     new_data = []
@@ -786,39 +772,11 @@ def get_dosimetry_load(datadict,DB):
  
     return datadict
 
-def get_MR_load(datadict):
-    print('Adding MD Loads... ',end='')
-    print_progress()
-
-    start = time.time()
-    timetable=[]
-    new_MR_data=[]
-    for i in datadict['MR']:
-        for j in datadict['RFT']:
-            if i[0]==j[0]:
-                timetable.append([i[5],j[5]])
-            
-    for i in datadict['MR']:
-        load = 0
-        for j in timetable:
-            if i[5]>=j[0] and i[5]<=j[1]:
-                load+=1
-        i.append('MRLOAD: '+str(load))
-        new_MR_data.append(i)
-
-    datadict['MR'] = new_MR_data
-    file = open('datadict.pkl','wb')
-    pickle.dump(datadict,file)
-    file.close()
-
-    return datadict
-
-
 def ExtractData(DB):
     # initialize a progress bar 
-    print('***********************************************************************************')
-    print('*                             Extracting and Cleaning Data                        *')
-    print('***********************************************************************************\n')
+    print('***************************************************************')
+    print('*                  Extracting and Cleaning Data               *')
+    print('***************************************************************\n')
 
 
     raw_data0 = query_database(DB)
@@ -871,11 +829,11 @@ def ExtractData(DB):
        
     data_dict = get_dosimetry_load(filtered_data_dictionary,DB)
     
-        
-    data_dict2 = get_MR_load(data_dict)
     
-        
-    return data_dict2
+    print('Data extraction completed.   ',end='')
+    print_progress()    
+    
+    return data_dict
 
 
 

@@ -11,10 +11,10 @@ import copy
                 
 # load the dictionary of sparse matrices as well as the column dictionary
 dat,col = BuildMatrices.build_matrices('devAEHRA')
-
-print('***********************************************************************************')
-print('*                            Creating and Saving Models                           *')
-print('***********************************************************************************\n')
+print('\n')
+print('***************************************************************')
+print('*                   Creating and Saving Models                *')
+print('***************************************************************\n')
 
 #Loop through the dictionary of sparse matrices to create and save models so that they can be called when a prediction will be needed
 for key in dat: 
@@ -29,16 +29,16 @@ for key in dat:
     model  = GradientBoostingRegressor(loss = 'lad',n_estimators=100).fit(X,y)
     
     # save each model in a encoded pickle file named by the key
-    file = open(key+'.pkl','wb')
+    file = open('/var/www/devDocuments/marc/ML_Algorithm_MUHC/'+key+'.pkl','wb')
     pickle.dump(model,file)
     file.close()
     # save the column dictionary (dictionary that has all the features for each key)
-    file = open('columndictionary.pkl','wb')
+    file = open('/var/www/devDocuments/marc/ML_Algorithm_MUHC/columndictionary.pkl','wb')
     pickle.dump(col,file)
     file.close()
     
     print('Done')
-    
+
     # The following code is for observational purposes only. It gives a rough approximation of the performance for each model by returning
     # the absolute mean error. This is useful for research purposes and hence is disactivated for server training purposes.
     '''
@@ -46,6 +46,11 @@ for key in dat:
     mean_abs_err = np.abs(np.mean(scores))
     print('Done Gradient Boosting Regressor. Mean absolute error: %.3f \n' %(mean_abs_err))
     '''
+
+print('\nThe algorithm has been successfully trained')
+print('use the "predictor.py" script to make predictions')
+    
+
 # A little function forprinting purposes. Gives the console a better look.
 def print_status(done,key):
     if done:

@@ -52,8 +52,9 @@ def Build_Prediction_Matrix(data,DB):
 
     # Build the sparse matrix and predict for that matrix. If the patient already reached Ready For Treatment, simply return 0
     if alias != 'READY FOR TREATMENT':
-        model = pickle.load(open(model,'rb'))
-        columndictionary = pickle.load(open('columndictionary.pkl','rb'))
+        print('/var/www/devDocuments/marc/ML_Algorithm_MUHC/'+model);
+        model = pickle.load(open('/var/www/devDocuments/marc/ML_Algorithm_MUHC/'+model,'rb'))
+        columndictionary = pickle.load(open('/var/www/devDocuments/marc/ML_Algorithm_MUHC/columndictionary.pkl','rb'))
         column = columndictionary[col]
         x = BIM.CreateInputMatrix(prediction_step,column)
         warnings.filterwarnings("ignore", category=DeprecationWarning)

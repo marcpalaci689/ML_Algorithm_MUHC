@@ -1,3 +1,10 @@
+'''
+This script is used to look up the patients most recent data and return their latest treatment course. If the patient happens to have a boost treatment or something of the like
+then it will only display the first treatment course. Some patients will have a long treatment course with multiple Ready for Treatment tasks and it is impossible
+to know what or why this happened. Hence we cannot give predictions for these cases.
+'''
+
+
 import mysql.connector
 import time
 import datetime
@@ -6,11 +13,7 @@ import holidays
 import pickle
 import PredictionMatrix as PM
 
-
-### This script is used to look up the patients most recent data and return their latest treatment course. If the patient happens to have a boost treatment or something of the like
-### then it will only display the first treatment course. Some patients will have a long treatment course with multiple Ready for Treatment tasks and it is impossible
-### to know what or why this happened. Hence we cannot give predictions for these cases.
-
+# This function looks up the DiagnosisTranslation table and returns a lookup table so that a diagnosis code can easily be translated into a diagnosis 
 def get_cancer(DB):
     can_cnx = mysql.connector.connect(user='root',password='service', database=DB)
     can_cur = can_cnx.cursor()
@@ -25,15 +28,27 @@ def get_cancer(DB):
         cancer.append(i[1].rstrip())
     return diagnosiscode,cancer
 
-
-
-def patient_history(DB,Patient):
-    
-    # Query Database to get the patients most recent treatment planning history
-    
+# function that takes the Database and an PatientAriaSer and returns the corresponding PatientSerNum (since the OPAL app works with PatientAriaSer but the ML Algorithm
+# deals with PatientSerNum)
+def get_PatientSerNum(DB,PatientAriaSer):
     cnx=mysql.connector.connect(user='root',password='service', database=DB)
     cur=cnx.cursor()
-    start=time.time()
+    cur.execute(''' SELECT Patient.PatientSerNum, Patient.PatientAriaSer FROM  Patient WHERE Patient.PatientAriaSer = %s''', (PatientAriaSer,))
+    try:
+        patientSerNum = cur.fetchone()[0]
+    except:
+        patientSerNum = 0
+    return patientSerNum
+
+# This is the main function that returns the most recent patient planning history
+def patient_history(DB,Patient):
+    
+    #First translate Aria Patient ID top a PatientSerNum
+    Patient = get_PatientSerNum(DB,Patient)
+
+    # Query Database to get the patients most recent treatment planning history   
+    cnx=mysql.connector.connect(user='root',password='service', database=DB)
+    cur=cnx.cursor()
     cur.execute(''' SELECT  Patient.PatientSerNum, Diagnosis.DiagnosisCode, Priority.PriorityCode, Alias.AliasName, Appointment.ScheduledStartTime, Priority.CreationDate,
     Patient.Sex, Patient.DateOfBirth,Appointment.ActivityInstanceAriaSer, Appointment.ScheduledEndTime, Priority.DueDateTime, Appointment.AppointmentAriaSer
     FROM Appointment JOIN Patient ON Appointment.PatientSerNum=Patient.PatientSerNum 
@@ -93,17 +108,23 @@ def patient_history(DB,Patient):
     data = data_1 + ct_data
 
 
-    # Filter out unnecessary aliases and priorities. Also set the maximum time limit to 150 days
+    # Filter out unnecessary aliases and priorities. Also set the maximum time limit to look back in time to 1000 days
     current_date = datetime.datetime.today()
-    beginning_date = current_date - datetime.timedelta(days=150)
-    aliases = ['Ct-Sim','READY FOR MD CONTOUR','READY FOR DOSE CALCULATION','READY FOR PHYSICS QA','READY FOR TREATMENT','End of Treament Note Task']
+    beginning_date = current_date - datetime.timedelta(days=1000)
+    aliases = ['Ct-Sim','READY FOR MD CONTOUR','READY FOR DOSE CALCULATION','READY FOR PHYSICS QA','READY FOR TREATMENT','End of Treament Note Task','First Treatment']
     ordered_data = []
     for i in data:
         if (i[2] in ['SGAS_P3', 'SGAS_P4']) and (i[3] in aliases) and (i[4]>beginning_date):
             ordered_data.append(i)
     ordered_data.sort(key=lambda x : x[4])
+    
+    # If patient has no history, return an empty list right away (or else the next filters will crash)
+    if len(ordered_data)<1:
+        return ordered_data
 
-
+    for i in ordered_data:
+        print(i)
+    
     # Filter out consecutive duplicates... keep only first instance
     unique_data = []
     last_alias='NONE'
@@ -123,7 +144,7 @@ def patient_history(DB,Patient):
         else:
             continue
 
-
+    # Go through all the data and return the SGAS creation date (by observing the priority and the due date)
     MR_data = []
     for i in unique_data:
         if i[1]=='0' and i[2]!='0':
@@ -146,6 +167,7 @@ def patient_history(DB,Patient):
         MR_data.append((i[0],i[1],i[2],i[3],i[4],creation)+i[6:])
 
     complete_data = []
+    
     # set a flag to know whether 'Medically Ready' task has been established already for the patient
     flag = False
     if MR_data[0][5] < MR_data[0][4]:
@@ -179,8 +201,7 @@ def patient_history(DB,Patient):
             last_course.append(i)
     last_course = reversed(last_course)        
   
-    
-    
+     
     # Determine whether a prediction should be given for this patient or not
     # My logic is that if the  most recent course of treatment has a 'READY FOR TREATMENT' task, then no prediction should be made
     predict = True
