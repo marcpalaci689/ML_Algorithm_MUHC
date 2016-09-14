@@ -121,9 +121,6 @@ def patient_history(DB,Patient):
     # If patient has no history, return an empty list right away (or else the next filters will crash)
     if len(ordered_data)<1:
         return ordered_data
-
-    for i in ordered_data:
-        print(i)
     
     # Filter out consecutive duplicates... keep only first instance
     unique_data = []
